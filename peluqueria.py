@@ -249,9 +249,9 @@ tab_agenda, tab_clientes, tab_servicios, tab_caja, tab_ia, tab_abm = st.tabs([
 with tab_agenda:
     st.subheader("Nuevo Turno")
     conn = conectar()
-    clientes_df = pd.read_sql_query("SELECT id, nombre FROM clientes WHERE COALESCE(activo, 1) = 1 ORDER BY nombre", conn)
-    servicios_df = pd.read_sql_query("SELECT id, nombre, precio FROM servicios WHERE COALESCE(activo, 1) = 1 ORDER BY nombre", conn)
-    medios_df = pd.read_sql_query("SELECT id, nombre FROM medios_pago WHERE COALESCE(activo, 1) = 1")
+    clientes_df = leer_tabla("SELECT id, nombre FROM clientes WHERE COALESCE(activo, 1) = 1 ORDER BY nombre", conn)
+    servicios_df = leer_tabla("SELECT id, nombre, precio FROM servicios WHERE COALESCE(activo, 1) = 1 ORDER BY nombre", conn)
+    medios_df = leer_tabla("SELECT id, nombre FROM medios_pago WHERE COALESCE(activo, 1) = 1")
     
     if clientes_df.empty:
         st.warning("⚠️ Primero carga al menos un cliente en la pestaña 'Clientes'.")
@@ -290,7 +290,7 @@ with tab_agenda:
         "JOIN servicios s ON t.servicio_id = s.id "
         "WHERE t.estado = 'Pendiente' ORDER BY t.fecha, t.hora"
     )
-    turnos_pendientes = pd.read_sql_query(query_turnos, conn)
+    turnos_pendientes = leer_tabla(query_turnos, conn)
     
     if turnos_pendientes.empty:
         st.info("No hay turnos pendientes.")
@@ -353,7 +353,7 @@ with tab_clientes:
     st.divider()
     st.subheader("Listado de Clientes")
     conn = conectar()
-    df_c = pd.read_sql_query("SELECT nombre AS Nombre, telefono AS Teléfono, notas_tecnicas AS 'Ficha Técnica' FROM clientes ORDER BY nombre", conn)
+    df_c = leer_tabla("SELECT nombre AS Nombre, telefono AS Teléfono, notas_tecnicas AS 'Ficha Técnica' FROM clientes ORDER BY nombre", conn)
     conn.close()
     st.dataframe(df_c, use_container_width=True, hide_index=True)
 
@@ -377,14 +377,14 @@ with tab_servicios:
                 st.rerun()
 
     conn = conectar()
-    df_s = pd.read_sql_query("SELECT nombre AS Servicio, precio AS Precio FROM servicios ORDER BY nombre", conn)
+    df_s = leer_tabla("SELECT nombre AS Servicio, precio AS Precio FROM servicios ORDER BY nombre", conn)
     st.dataframe(df_s, use_container_width=True, hide_index=True)
 
     st.divider()
     st.subheader("📈 Actualizar Comisión de Medio de Pago")
     st.caption("Cuando el banco o POS cambie sus aranceles, registra aquí el nuevo porcentaje sin perder el historial.")
     
-    medios_lista = pd.read_sql_query("SELECT id, nombre FROM medios_pago", conn)
+    medios_lista = leer_tabla("SELECT id, nombre FROM medios_pago", conn)
     with st.form("form_nueva_comision", clear_on_submit=True):
         c_m1, c_m2, c_m3 = st.columns(3)
         medio_elegido = c_m1.selectbox("Medio de Pago", medios_lista["nombre"])
@@ -411,7 +411,7 @@ with tab_servicios:
         "JOIN medios_pago mp ON hc.medio_pago_id = mp.id "
         "ORDER BY hc.fecha_vigencia DESC, hc.id DESC"
     )
-    df_hist = pd.read_sql_query(query_hist, conn)
+    df_hist = leer_tabla(query_hist, conn)
     st.dataframe(df_hist, use_container_width=True, hide_index=True)
     conn.close()
 
@@ -442,7 +442,7 @@ with tab_caja:
     st.divider()
     st.subheader(f"Balance de Hoy ({date.today()})")
     conn = conectar()
-    df_caja = pd.read_sql_query(
+    df_caja = leer_tabla(
         "SELECT tipo AS Tipo, concepto AS Concepto, medio_pago AS Pago, "
         "porcentaje_aplicado AS '% Desc', monto_bruto AS Bruto, "
         "comision AS Comisión, monto_neto AS Neto "
@@ -526,7 +526,7 @@ with tab_abm:
     # --- 1. ABM CLIENTES ---
     with sub_cli:
         conn = conectar()
-        df_cli = pd.read_sql_query(
+        df_cli = leer_tabla(
             "SELECT id, nombre, telefono, notas_tecnicas, COALESCE(activo, 1) AS activo FROM clientes ORDER BY nombre",
             conn
         )
@@ -571,7 +571,7 @@ with tab_abm:
     # --- 2. ABM SERVICIOS ---
     with sub_ser:
         conn = conectar()
-        df_ser = pd.read_sql_query(
+        df_ser = leer_tabla(
             "SELECT id, nombre, precio, COALESCE(activo, 1) AS activo FROM servicios ORDER BY nombre",
             conn
         )
@@ -616,7 +616,7 @@ with tab_abm:
     # --- 3. ABM MEDIOS DE PAGO ---
     with sub_pag:
         conn = conectar()
-        df_pag = pd.read_sql_query(
+        df_pag = leer_tabla(
             "SELECT id, nombre, COALESCE(activo, 1) AS activo FROM medios_pago ORDER BY id",
             conn
         )
@@ -659,7 +659,7 @@ with tab_abm:
     with sub_caj:
         st.caption("Aquí puedes eliminar un movimiento de caja cargado por error.")
         conn = conectar()
-        df_aud = pd.read_sql_query(
+        df_aud = leer_tabla(
             "SELECT id, fecha, tipo, concepto, medio_pago, monto_bruto, monto_neto FROM caja ORDER BY id DESC LIMIT 30",
             conn
         )
