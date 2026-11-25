@@ -7,10 +7,13 @@ from google import genai
 
 def conectar():
     if "TURSO_URL" in st.secrets and "TURSO_TOKEN" in st.secrets:
-        return libsql.connect(
-            database=st.secrets["TURSO_URL"],
+        conn = libsql.connect(
+            "replica_local.db",
+            sync_url=st.secrets["TURSO_URL"],
             auth_token=st.secrets["TURSO_TOKEN"]
         )
+        conn.sync()
+        return conn
     return libsql.connect("peluqueria.db")
 
 def inicializar_db():
