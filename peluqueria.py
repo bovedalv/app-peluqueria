@@ -233,8 +233,8 @@ if not verificar_acceso():
 
 st.title("✂️ Mi Peluquería")
 
-tab_agenda, tab_clientes, tab_servicios, tab_caja, tab_ia = st.tabs([
-    "📅 Agenda", "👤 Clientes", "🏷️ Servicios y Tarifas", "💰 Caja", "🤖 Asistente IA"
+tab_agenda, tab_clientes, tab_servicios, tab_caja, tab_ia, tab_abm = st.tabs([
+    "📅 Agenda", "👤 Clientes", "🏷️ Tarifas", "💰 Caja", "🤖 Asistente IA", "⚙️ ABM"
 ])
 
 # ==========================================
