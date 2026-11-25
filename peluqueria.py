@@ -103,6 +103,7 @@ def inicializar_db():
             )
         
     conn.commit()
+    conn.sync()
     conn.close()
 
 def obtener_comision_vigente(conn, medio_nombre):
@@ -185,6 +186,7 @@ def agendar_turno(nombre_cliente: str, nombre_servicio: str, fecha: str, hora: s
         (c_id, s_id, fecha, hora, precio)
     )
     conn.commit()
+    conn.sync()
     conn.close()
     return f"Turno agendado con éxito: {c_nom} para {s_nom} el {fecha} a las {hora} hs (${precio:.0f})."
 
@@ -197,6 +199,7 @@ def registrar_gasto(concepto: str, monto: float) -> str:
         (str(date.today()), concepto, monto, monto)
     )
     conn.commit()
+    conn.sync()
     conn.close()
     return f"Gasto registrado en caja: '{concepto}' por ${monto:.0f}."
 
@@ -263,6 +266,7 @@ with tab_agenda:
                     (c_id, s_id, str(fecha_sel), hora_sel.strftime("%H:%M"), precio_actual)
                 )
                 conn.commit()
+                conn.sync()
                 st.success(f"Turno agendado para {cliente_sel} (${precio_actual:.0f})")
                 st.rerun()
 
@@ -308,6 +312,7 @@ with tab_agenda:
                         (str(date.today()), concepto, medio_sel, pct, bruto, comision, neto)
                     )
                     conn.commit()
+                    conn.sync()
                     st.toast(f"Cobrado con {medio_sel} ({pct}% desc. -> Neto: ${neto:.0f})")
                     st.rerun()
     conn.close()
@@ -327,6 +332,7 @@ with tab_clientes:
                 conn.execute("INSERT INTO clientes (nombre, telefono, notas_tecnicas) VALUES (?, ?, ?)",
                              (nombre_c.strip(), tel_c.strip(), notas_c.strip()))
                 conn.commit()
+                conn.sync()
                 conn.close()
                 st.success(f"Cliente '{nombre_c}' guardado.")
                 st.rerun()
@@ -354,6 +360,7 @@ with tab_servicios:
                 conn = conectar()
                 conn.execute("INSERT INTO servicios (nombre, precio) VALUES (?, ?)", (nombre_s.strip(), precio_s))
                 conn.commit()
+                conn.sync()
                 conn.close()
                 st.success("Servicio agregado.")
                 st.rerun()
@@ -381,6 +388,7 @@ with tab_servicios:
                 (m_id, nuevo_porcentaje, str(fecha_vig), nota_com.strip())
             )
             conn.commit()
+            conn.sync()
             st.success(f"Nueva comisión de {nuevo_porcentaje}% registrada para {medio_elegido}.")
             st.rerun()
 
@@ -415,6 +423,7 @@ with tab_caja:
                     (str(date.today()), tipo_m, concepto_m.strip(), monto_m, monto_m)
                 )
                 conn.commit()
+                conn.sync()
                 conn.close()
                 st.success("Movimiento registrado.")
                 st.rerun()
