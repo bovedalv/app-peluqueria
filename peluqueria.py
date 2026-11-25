@@ -676,7 +676,7 @@ with tab_ia:
             )
         }
         st.session_state.chat_pelu = cliente_ia.chats.create(
-            model="gemini-2.5-flash",
+            model="gemini-3.8-flash",
             config=config_ia
         )
         st.session_state.mensajes_pelu = []
