@@ -195,6 +195,27 @@ def registrar_gasto(concepto: str, monto: float) -> str:
 
 # --- INTERFAZ VISUAL ---
 st.set_page_config(page_title="Gestión Peluquería", page_icon="✂️", layout="centered")
+def verificar_acceso():
+    if st.session_state.get("autenticado", False):
+        return True
+
+    st.title("🔒 Acceso Restringido")
+    with st.form("form_login"):
+        usuario = st.text_input("Usuario")
+        password = st.text_input("Contraseña", type="password")
+        if st.form_submit_button("Ingresar", use_container_width=True):
+            user_valido = st.secrets.get("USUARIO_ADMIN", "liliana")
+            pass_valida = st.secrets.get("PASSWORD_ADMIN", "Sandrala1")
+            if usuario == user_valido and password == pass_valida:
+                st.session_state["autenticado"] = True
+                st.rerun()
+            else:
+                st.error("❌ Usuario o contraseña incorrectos.")
+    return False
+
+if not verificar_acceso():
+    st.stop()
+
 st.title("✂️ Mi Peluquería")
 
 tab_agenda, tab_clientes, tab_servicios, tab_caja, tab_ia = st.tabs([
