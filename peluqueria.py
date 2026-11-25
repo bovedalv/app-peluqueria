@@ -244,7 +244,7 @@ with tab_agenda:
     st.subheader("Nuevo Turno")
     conn = conectar()
     clientes_df = pd.read_sql_query("SELECT id, nombre FROM clientes WHERE COALESCE(activo, 1) = 1 ORDER BY nombre", conn)
-    servicios_df = pd.read_sql_query("SELECT id, nombre, precio FROM servicios WHERE COALESCE(activo, 1) = 1 ORDER BY nombre)
+    servicios_df = pd.read_sql_query("SELECT id, nombre, precio FROM servicios WHERE COALESCE(activo, 1) = 1 ORDER BY nombre", conn)
     medios_df = pd.read_sql_query("SELECT id, nombre FROM medios_pago WHERE COALESCE(activo, 1) = 1)
     
     if clientes_df.empty:
