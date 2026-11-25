@@ -245,7 +245,7 @@ with tab_agenda:
     conn = conectar()
     clientes_df = pd.read_sql_query("SELECT id, nombre FROM clientes WHERE COALESCE(activo, 1) = 1 ORDER BY nombre", conn)
     servicios_df = pd.read_sql_query("SELECT id, nombre, precio FROM servicios WHERE COALESCE(activo, 1) = 1 ORDER BY nombre", conn)
-    medios_df = pd.read_sql_query("SELECT id, nombre FROM medios_pago WHERE COALESCE(activo, 1) = 1)
+    medios_df = pd.read_sql_query("SELECT id, nombre FROM medios_pago WHERE COALESCE(activo, 1) = 1")
     
     if clientes_df.empty:
         st.warning("⚠️ Primero carga al menos un cliente en la pestaña 'Clientes'.")
