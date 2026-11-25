@@ -218,6 +218,188 @@ def registrar_gasto(concepto: str, monto: float) -> str:
     conn.close()
     return f"Gasto registrado en caja: '{concepto}' por ${monto:.0f}."
 
+# --- HERRAMIENTAS DE ABM PARA EL AGENTE ---
+
+def gestionar_cliente(accion: str, nombre: str, telefono: str = "", notas_tecnicas: str = "") -> str:
+    """Crea, actualiza o da de baja (borrado lógico) un cliente.
+    accion debe ser: 'crear', 'actualizar' o 'bajar'.
+    """
+    conn = conectar()
+    cur = conn.cursor()
+    accion = accion.lower().strip()
+    patron = f"%{nombre.lower().strip()}%"
+
+    if accion == "crear":
+        cur.execute(
+            "INSERT INTO clientes (nombre, telefono, notas_tecnicas, activo) VALUES (?, ?, ?, 1)",
+            (nombre.strip(), telefono.strip(), notas_tecnicas.strip())
+        )
+        conn.commit()
+        conn.close()
+        return f"Cliente '{nombre}' creado con éxito."
+
+    elif accion == "actualizar":
+        if telefono:
+            cur.execute("UPDATE clientes SET telefono = ? WHERE LOWER(nombre) LIKE ? AND COALESCE(activo, 1) = 1", (telefono.strip(), patron))
+        if notas_tecnicas:
+            cur.execute("UPDATE clientes SET notas_tecnicas = ? WHERE LOWER(nombre) LIKE ? AND COALESCE(activo, 1) = 1", (notas_tecnicas.strip(), patron))
+        filas = cur.rowcount
+        conn.commit()
+        conn.close()
+        return f"Datos de '{nombre}' actualizados." if filas > 0 else f"No encontré al cliente '{nombre}'."
+
+    elif accion == "bajar":
+        cur.execute("UPDATE clientes SET activo = 0 WHERE LOWER(nombre) LIKE ?", (patron,))
+        filas = cur.rowcount
+        conn.commit()
+        conn.close()
+        return f"Cliente '{nombre}' dado de baja." if filas > 0 else f"No encontré al cliente '{nombre}'."
+
+    conn.close()
+    return "Acción no válida. Usa 'crear', 'actualizar' o 'bajar'."
+
+
+def gestionar_servicio(accion: str, nombre_servicio: str, precio: float = 0.0) -> str:
+    """Crea, actualiza el precio o da de baja un servicio del catálogo.
+    accion debe ser: 'crear', 'actualizar' o 'bajar'.
+    """
+    conn = conectar()
+    cur = conn.cursor()
+    accion = accion.lower().strip()
+    patron = f"%{nombre_servicio.lower().strip()}%"
+
+    if accion == "crear":
+        cur.execute("INSERT INTO servicios (nombre, precio, activo) VALUES (?, ?, 1)", (nombre_servicio.strip(), precio))
+        conn.commit()
+        conn.close()
+        return f"Servicio '{nombre_servicio}' agregado a ${precio:.0f}."
+
+    elif accion == "actualizar":
+        cur.execute("UPDATE servicios SET precio = ? WHERE LOWER(nombre) LIKE ? AND COALESCE(activo, 1) = 1", (precio, patron))
+        filas = cur.rowcount
+        conn.commit()
+        conn.close()
+        return f"Precio de '{nombre_servicio}' actualizado a ${precio:.0f}." if filas > 0 else f"No encontré el servicio '{nombre_servicio}'."
+
+    elif accion == "bajar":
+        cur.execute("UPDATE servicios SET activo = 0 WHERE LOWER(nombre) LIKE ?", (patron,))
+        filas = cur.rowcount
+        conn.commit()
+        conn.close()
+        return f"Servicio '{nombre_servicio}' dado de baja." if filas > 0 else f"No encontré el servicio '{nombre_servicio}'."
+
+    conn.close()
+    return "Acción no válida."
+
+
+def gestionar_medio_pago(accion: str, nombre_medio: str, nueva_comision_pct: float = 0.0, nota: str = "Actualizado por asistente") -> str:
+    """Crea un medio de pago, actualiza su porcentaje de comisión histórica o lo da de baja.
+    accion debe ser: 'crear', 'comision' o 'bajar'.
+    """
+    conn = conectar()
+    cur = conn.cursor()
+    accion = accion.lower().strip()
+    patron = f"%{nombre_medio.lower().strip()}%"
+
+    if accion == "crear":
+        cur.execute("INSERT INTO medios_pago (nombre, activo) VALUES (?, 1)", (nombre_medio.strip(),))
+        m_id = cur.lastrowid
+        cur.execute(
+            "INSERT INTO historial_comisiones (medio_pago_id, porcentaje, fecha_vigencia, nota) VALUES (?, ?, ?, ?)",
+            (m_id, nueva_comision_pct, str(date.today()), nota)
+        )
+        conn.commit()
+        conn.close()
+        return f"Medio de pago '{nombre_medio}' creado con {nueva_comision_pct}% de comisión."
+
+    elif accion == "comision":
+        cur.execute("SELECT id, nombre FROM medios_pago WHERE LOWER(nombre) LIKE ? AND COALESCE(activo, 1) = 1", (patron,))
+        res = cur.fetchone()
+        if res:
+            m_id, nom_real = res, res
+            cur.execute(
+                "INSERT INTO historial_comisiones (medio_pago_id, porcentaje, fecha_vigencia, nota) VALUES (?, ?, ?, ?)",
+                (m_id, nueva_comision_pct, str(date.today()), nota)
+            )
+            conn.commit()
+            conn.close()
+            return f"Nueva comisión del {nueva_comision_pct}% registrada para '{nom_real}' desde hoy."
+        conn.close()
+        return f"No encontré el medio de pago '{nombre_medio}'."
+
+    elif accion == "bajar":
+        cur.execute("UPDATE medios_pago SET activo = 0 WHERE LOWER(nombre) LIKE ?", (patron,))
+        filas = cur.rowcount
+        conn.commit()
+        conn.close()
+        return f"Medio de pago '{nombre_medio}' dado de baja." if filas > 0 else f"No encontré '{nombre_medio}'."
+
+    conn.close()
+    return "Acción no válida."
+
+
+def gestionar_turno(accion: str, nombre_cliente: str, nueva_fecha: str = "", nueva_hora: str = "") -> str:
+    """Reprograma o cancela el próximo turno pendiente de un cliente.
+    accion debe ser: 'reprogramar' o 'cancelar'. Fechas en formato YYYY-MM-DD y horas en HH:MM.
+    """
+    conn = conectar()
+    cur = conn.cursor()
+    patron = f"%{nombre_cliente.lower().strip()}%"
+    cur.execute(
+        "SELECT t.id, c.nombre, t.fecha, t.hora FROM turnos t "
+        "JOIN clientes c ON t.cliente_id = c.id "
+        "WHERE LOWER(c.nombre) LIKE ? AND t.estado = 'Pendiente' ORDER BY t.fecha, t.hora LIMIT 1",
+        (patron,)
+    )
+    turno = cur.fetchone()
+    if not turno:
+        conn.close()
+        return f"No encontré ningún turno pendiente para '{nombre_cliente}'."
+
+    t_id, nom_real, f_act, h_act = turno, turno, turno, turno
+    accion = accion.lower().strip()
+
+    if accion == "cancelar":
+        cur.execute("UPDATE turnos SET estado = 'Cancelado' WHERE id = ?", (t_id,))
+        conn.commit()
+        conn.close()
+        return f"Turno de {nom_real} del {f_act} a las {h_act} cancelado."
+
+    elif accion == "reprogramar":
+        f_final = nueva_fecha if nueva_fecha else f_act
+        h_final = nueva_hora if nueva_hora else h_act
+        cur.execute("UPDATE turnos SET fecha = ?, hora = ? WHERE id = ?", (f_final, h_final, t_id))
+        conn.commit()
+        conn.close()
+        return f"Turno de {nom_real} reprogramado para el {f_final} a las {h_final} hs."
+
+    conn.close()
+    return "Acción no válida."
+
+
+def eliminar_movimiento_caja(id_movimiento: int = 0) -> str:
+    """Elimina un movimiento de caja por su ID. Si id_movimiento es 0, borra el último registrado."""
+    conn = conectar()
+    cur = conn.cursor()
+    if id_movimiento == 0:
+        cur.execute("SELECT id, concepto, monto_bruto FROM caja ORDER BY id DESC LIMIT 1")
+        ultimo = cur.fetchone()
+        if not ultimo:
+            conn.close()
+            return "No hay movimientos en la caja para borrar."
+        id_movimiento, concepto, monto = ultimo, ultimo, ultimo
+        cur.execute("DELETE FROM caja WHERE id = ?", (id_movimiento,))
+        conn.commit()
+        conn.close()
+        return f"Último movimiento eliminado: #{id_movimiento} ({concepto} por ${monto:.0f})."
+    else:
+        cur.execute("DELETE FROM caja WHERE id = ?", (id_movimiento,))
+        filas = cur.rowcount
+        conn.commit()
+        conn.close()
+        return f"Movimiento #{id_movimiento} eliminado." if filas > 0 else f"No existe el movimiento #{id_movimiento}."
+
+
 # --- INTERFAZ VISUAL ---
 st.set_page_config(page_title="Gestión Peluquería", page_icon="✂️", layout="centered")
 def verificar_acceso():
