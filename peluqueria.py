@@ -16,9 +16,12 @@ def conectar():
         return conn
     return libsql.connect("peluqueria.db")
 
-def leer_tabla(query, conn, params=()):
+def leer_tabla(query, conn, params=None):
     cur = conn.cursor()
-    cur.execute(query, params)
+    if params:
+        cur.execute(query, params)
+    else:
+        cur.execute(query)
     columnas = [desc[0] for desc in cur.description] if cur.description else []
     filas = cur.fetchall()
     return pd.DataFrame(filas, columns=columnas)
