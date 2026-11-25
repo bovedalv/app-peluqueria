@@ -664,7 +664,7 @@ with tab_ia:
     if "chat_pelu" not in st.session_state:
         # ACUÉRDATE DE PEGAR AQUÍ TU CLAVE AQ. DE GOOGLE
         # cliente_ia = genai.Client(api_key="AQ.Ab8RN6J5B_5dIwR8tN5u4LGAMbpliPAW2Q2bMM_i-ME_xDdOTA")
-        api_key = st.secrets.get("GEMINI_API_KEY", "SIN_CLAVE")
+        api_key = st.secrets["GEMINI_API_KEY"].strip()
         cliente_ia = genai.Client(api_key=api_key)
         config_ia = {
             "tools": [consultar_ficha_cliente, ver_agenda, agendar_turno, registrar_gasto],
