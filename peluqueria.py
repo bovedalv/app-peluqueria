@@ -505,3 +505,166 @@ with tab_ia:
                 st.session_state.mensajes_pelu.append({"rol": "assistant", "texto": resp.text})
             except Exception as e:
                 st.error(f"Error al conectar con el asistente: {e}")
+
+# ==========================================
+# PESTAÑA 6: ADMINISTRACIÓN MAESTRA (ABM)
+# ==========================================
+with tab_abm:
+    st.subheader("⚙️ Administración de Tablas Maestras")
+    st.caption("Edita directamente sobre las grillas tipo Excel y presiona 'Guardar Cambios' debajo de cada tabla. Desmarca 'Activo' para dar de baja sin perder el historial.")
+
+    sub_cli, sub_ser, sub_pag, sub_caj = st.tabs([
+        "👤 Clientes", "✂️ Servicios", "💳 Medios de Pago", "🧾 Auditoría Caja"
+    ])
+
+    # --- 1. ABM CLIENTES ---
+    with sub_cli:
+        conn = conectar()
+        df_cli = pd.read_sql_query(
+            "SELECT id, nombre, telefono, notas_tecnicas, COALESCE(activo, 1) AS activo FROM clientes ORDER BY nombre",
+            conn
+        )
+        df_cli["activo"] = df_cli["activo"].astype(bool)
+
+        edit_cli = st.data_editor(
+            df_cli,
+            column_config={
+                "id": st.column_config.NumberColumn("ID", disabled=True),
+                "nombre": st.column_config.TextColumn("Nombre y Apellido", required=True),
+                "telefono": st.column_config.TextColumn("Teléfono"),
+                "notas_tecnicas": st.column_config.TextColumn("Ficha Técnica"),
+                "activo": st.column_config.CheckboxColumn("Activo", default=True)
+            },
+            num_rows="dynamic",
+            use_container_width=True,
+            hide_index=True,
+            key="editor_clientes"
+        )
+
+        if st.button("💾 Guardar Cambios en Clientes", use_container_width=True):
+            c = conn.cursor()
+            for _, row in edit_cli.iterrows():
+                if pd.isna(row["nombre"]) or not str(row["nombre"]).strip():
+                    continue
+                act = 1 if row["activo"] else 0
+                if pd.isna(row["id"]):
+                    c.execute(
+                        "INSERT INTO clientes (nombre, telefono, notas_tecnicas, activo) VALUES (?, ?, ?, ?)",
+                        (str(row["nombre"]).strip(), str(row["telefono"] or ""), str(row["notas_tecnicas"] or ""), act)
+                    )
+                else:
+                    c.execute(
+                        "UPDATE clientes SET nombre=?, telefono=?, notas_tecnicas=?, activo=? WHERE id=?",
+                        (str(row["nombre"]).strip(), str(row["telefono"] or ""), str(row["notas_tecnicas"] or ""), act, int(row["id"]))
+                    )
+            conn.commit()
+            st.success("✅ Tabla de Clientes actualizada.")
+            st.rerun()
+        conn.close()
+
+    # --- 2. ABM SERVICIOS ---
+    with sub_ser:
+        conn = conectar()
+        df_ser = pd.read_sql_query(
+            "SELECT id, nombre, precio, COALESCE(activo, 1) AS activo FROM servicios ORDER BY nombre",
+            conn
+        )
+        df_ser["activo"] = df_ser["activo"].astype(bool)
+
+        edit_ser = st.data_editor(
+            df_ser,
+            column_config={
+                "id": st.column_config.NumberColumn("ID", disabled=True),
+                "nombre": st.column_config.TextColumn("Servicio", required=True),
+                "precio": st.column_config.NumberColumn("Precio ($)", min_value=0.0, step=50.0, required=True),
+                "activo": st.column_config.CheckboxColumn("Activo", default=True)
+            },
+            num_rows="dynamic",
+            use_container_width=True,
+            hide_index=True,
+            key="editor_servicios"
+        )
+
+        if st.button("💾 Guardar Cambios en Servicios", use_container_width=True):
+            c = conn.cursor()
+            for _, row in edit_ser.iterrows():
+                if pd.isna(row["nombre"]) or not str(row["nombre"]).strip():
+                    continue
+                act = 1 if row["activo"] else 0
+                precio_val = float(row["precio"]) if not pd.isna(row["precio"]) else 0.0
+                if pd.isna(row["id"]):
+                    c.execute(
+                        "INSERT INTO servicios (nombre, precio, activo) VALUES (?, ?, ?)",
+                        (str(row["nombre"]).strip(), precio_val, act)
+                    )
+                else:
+                    c.execute(
+                        "UPDATE servicios SET nombre=?, precio=?, activo=? WHERE id=?",
+                        (str(row["nombre"]).strip(), precio_val, act, int(row["id"]))
+                    )
+            conn.commit()
+            st.success("✅ Tabla de Servicios actualizada.")
+            st.rerun()
+        conn.close()
+
+    # --- 3. ABM MEDIOS DE PAGO ---
+    with sub_pag:
+        conn = conectar()
+        df_pag = pd.read_sql_query(
+            "SELECT id, nombre, COALESCE(activo, 1) AS activo FROM medios_pago ORDER BY id",
+            conn
+        )
+        df_pag["activo"] = df_pag["activo"].astype(bool)
+
+        edit_pag = st.data_editor(
+            df_pag,
+            column_config={
+                "id": st.column_config.NumberColumn("ID", disabled=True),
+                "nombre": st.column_config.TextColumn("Medio de Pago", required=True),
+                "activo": st.column_config.CheckboxColumn("Activo", default=True)
+            },
+            num_rows="dynamic",
+            use_container_width=True,
+            hide_index=True,
+            key="editor_pagos"
+        )
+
+        if st.button("💾 Guardar Cambios en Medios de Pago", use_container_width=True):
+            c = conn.cursor()
+            for _, row in edit_pag.iterrows():
+                if pd.isna(row["nombre"]) or not str(row["nombre"]).strip():
+                    continue
+                act = 1 if row["activo"] else 0
+                if pd.isna(row["id"]):
+                    c.execute("INSERT INTO medios_pago (nombre, activo) VALUES (?, ?)", (str(row["nombre"]).strip(), act))
+                    m_id = c.lastrowid
+                    c.execute(
+                        "INSERT INTO historial_comisiones (medio_pago_id, porcentaje, fecha_vigencia, nota) VALUES (?, 0.0, ?, 'Alta inicial')",
+                        (m_id, str(date.today()))
+                    )
+                else:
+                    c.execute("UPDATE medios_pago SET nombre=?, activo=? WHERE id=?", (str(row["nombre"]).strip(), act, int(row["id"])))
+            conn.commit()
+            st.success("✅ Medios de Pago actualizados (recuerda ajustar su % en la pestaña Tarifas si agregaste uno nuevo).")
+            st.rerun()
+        conn.close()
+
+    # --- 4. AUDITORÍA / ANULACIÓN DE CAJA ---
+    with sub_caj:
+        st.caption("Aquí puedes eliminar un movimiento de caja cargado por error.")
+        conn = conectar()
+        df_aud = pd.read_sql_query(
+            "SELECT id, fecha, tipo, concepto, medio_pago, monto_bruto, monto_neto FROM caja ORDER BY id DESC LIMIT 30",
+            conn
+        )
+        if df_aud.empty:
+            st.info("No hay movimientos registrados.")
+        else:
+            st.dataframe(df_aud, use_container_width=True, hide_index=True)
+            id_borrar = st.number_input("ID del movimiento a eliminar", min_value=1, step=1)
+            if st.button("🗑️ Eliminar Movimiento de Caja", type="primary"):
+                conn.execute("DELETE FROM caja WHERE id = ?", (int(id_borrar),))
+                conn.commit()
+                st.warning(f"Movimiento #{id_borrar} eliminado.")
+                st.rerun()
+        conn.close()
