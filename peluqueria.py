@@ -1,13 +1,17 @@
-import sqlite3
+import libsql
 from datetime import date
 import streamlit as st
 import pandas as pd
 from google import genai
 
-DB = "peluqueria.db"
 
 def conectar():
-    return sqlite3.connect(DB)
+    if "TURSO_URL" in st.secrets and "TURSO_TOKEN" in st.secrets:
+        return libsql.connect(
+            database=st.secrets["TURSO_URL"],
+            auth_token=st.secrets["TURSO_TOKEN"]
+        )
+    return libsql.connect("peluqueria.db")
 
 def inicializar_db():
     conn = conectar()
