@@ -101,7 +101,12 @@ def inicializar_db():
                 "INSERT INTO historial_comisiones (medio_pago_id, porcentaje, fecha_vigencia, nota) VALUES (?, ?, ?, ?)",
                 (m_id, pct, str(date.today()), nota)
             )
-        
+        for tabla in ["clientes", "servicios", "medios_pago"]:
+        try:
+            c.execute(f"ALTER TABLE {tabla} ADD COLUMN activo INTEGER DEFAULT 1")
+        except Exception:
+            pass
+    
     conn.commit()
     conn.sync()
     conn.close()
