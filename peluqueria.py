@@ -6,12 +6,12 @@ from google import genai
 
 
 def conectar():
-    def leer_tabla(query, conn, params=()):
-    cur = conn.cursor()
-    cur.execute(query, params)
-    columnas = [desc[0] for desc in cur.description] if cur.description else []
-    filas = cur.fetchall()
-    return pd.DataFrame(filas, columns=columnas)
+def leer_tabla(query, conn, params=()):
+                cur = conn.cursor()
+                cur.execute(query, params)
+                columnas = [desc[0] for desc in cur.description] if cur.description else []
+                filas = cur.fetchall()
+                return pd.DataFrame(filas, columns=columnas)
     if "TURSO_URL" in st.secrets and "TURSO_TOKEN" in st.secrets:
         conn = libsql.connect(
             "replica_local.db",
