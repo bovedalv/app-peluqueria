@@ -2,9 +2,7 @@ import libsql
 from datetime import date
 import streamlit as st
 import pandas as pd
-import json
-from datetime import datetime
-from groq import Groq
+from google import genai
 
 
 def conectar():
@@ -660,227 +658,46 @@ with tab_caja:
 # PESTAÑA 5: ASISTENTE IA (SECRETARIO VIRTUAL)
 # ==========================================
 with tab_ia:
-    st.subheader("🤖 Asistente Virtual de la Peluquería")
-    st.caption("Consulta ventas, agenda turnos, crea clientes o registra gastos hablando naturalmente.")
-
-    if "GROQ_API_KEY" not in st.secrets:
-        st.warning("⚠️ Falta configurar GROQ_API_KEY en los Secrets de Streamlit.")
-    else:
-        cliente_groq = Groq(api_key=st.secrets["GROQ_API_KEY"].strip(), timeout=15.0)
-        MODELO_GROQ = "openai/gpt-oss-20b"
-
-        herramientas_groq = [
-            {
-                "type": "function",
-                "function": {
-                    "name": "consultar_base_datos",
-                    "description": "Ejecuta consultas SQL SELECT de solo lectura en SQLite/Turso para ver turnos, clientes, servicios, ingresos o gastos.",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "consulta_sql": {"type": "string", "description": "Consulta SQL válida que empiece con SELECT."}
-                        },
-                        "required": ["consulta_sql"]
-                    }
-                }
-            },
-            {
-                "type": "function",
-                "function": {
-                    "name": "agendar_turno",
-                    "description": "Agenda un nuevo turno en la peluquería.",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "cliente_nombre": {"type": "string"},
-                            "servicio_nombre": {"type": "string"},
-                            "fecha": {"type": "string", "description": "Formato YYYY-MM-DD"},
-                            "hora": {"type": "string", "description": "Formato HH:MM"},
-                            "metodo_pago": {"type": "string", "description": "Efectivo, Transferencia, Tarjeta o Pendiente"}
-                        },
-                        "required": ["cliente_nombre", "servicio_nombre", "fecha", "hora"]
-                    }
-                }
-            },
-            {
-                "type": "function",
-                "function": {
-                    "name": "crear_cliente",
-                    "description": "Registra un nuevo cliente en la base de datos.",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "nombre": {"type": "string"},
-                            "telefono": {"type": "string"},
-                            "notas": {"type": "string"}
-                        },
-                        "required": ["nombre"]
-                    }
-                }
-            },
-            {
-                "type": "function",
-                "function": {
-                    "name": "registrar_gasto",
-                    "description": "Registra un gasto o egreso del salón.",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "concepto": {"type": "string"},
-                            "monto": {"type": "number"},
-                            "categoria": {"type": "string"},
-                            "fecha": {"type": "string", "description": "Formato YYYY-MM-DD"}
-                        },
-                        "required": ["concepto", "monto"]
-                    }
-                }
-            }
-        ]
-
-        def consultar_base_datos(consulta_sql: str):
-            sql_limpio = consulta_sql.strip()
-            if not sql_limpio.upper().startswith("SELECT"):
-                return "Error: Solo se permiten consultas SELECT de lectura."
-            try:
-                df_res = leer_tabla(sql_limpio, conn)
-                if df_res.empty:
-                    return "La consulta no devolvió resultados."
-                return df_res.to_json(orient="records", force_ascii=False)
-            except Exception as ex:
-                return f"Error SQL: {ex}"
-
-        def agendar_turno(cliente_nombre: str, servicio_nombre: str, fecha: str, hora: str, metodo_pago: str = "Pendiente"):
-            try:
-                cur = conn.cursor()
-                df_c = leer_tabla("SELECT id, nombre FROM clientes WHERE LOWER(nombre) LIKE LOWER(?)", conn, (f"%{cliente_nombre}%",))
-                if df_c.empty:
-                    cur.execute("INSERT INTO clientes (nombre, activo) VALUES (?, 1)", (cliente_nombre,))
-                    conn.commit()
-                    df_c = leer_tabla("SELECT id, nombre FROM clientes WHERE nombre = ?", conn, (cliente_nombre,))
-                fila_c = df_c.iloc[0]
-                cliente_id = int(fila_c["id"])
-                nombre_c_real = fila_c["nombre"]
-
-                df_s = leer_tabla("SELECT id, nombre, precio FROM servicios WHERE LOWER(nombre) LIKE LOWER(?)", conn, (f"%{servicio_nombre}%",))
-                if df_s.empty:
-                    return f"No encontré ningún servicio parecido a '{servicio_nombre}'."
-                fila_s = df_s.iloc[0]
-                servicio_id = int(fila_s["id"])
-                nombre_s_real = fila_s["nombre"]
-                precio_s = float(fila_s["precio"])
-
-                cur.execute(
-                    "INSERT INTO turnos (cliente_id, servicio_id, fecha, hora, precio, estado, metodo_pago) VALUES (?, ?, ?, ?, ?, 'Pendiente', ?)",
-                    (cliente_id, servicio_id, fecha, hora, precio_s, metodo_pago)
-                )
-                conn.commit()
-                return f"Turno agendado: {nombre_c_real} para {nombre_s_real} (${precio_s:,.0f}) el {fecha} a las {hora}."
-            except Exception as ex:
-                return f"Error al agendar turno: {ex}"
-
-        def crear_cliente(nombre: str, telefono: str = "", notas: str = ""):
-            try:
-                cur = conn.cursor()
-                cur.execute("INSERT INTO clientes (nombre, telefono, notas, activo) VALUES (?, ?, ?, 1)", (nombre, telefono, notas))
-                conn.commit()
-                return f"Cliente '{nombre}' registrado correctamente."
-            except Exception as ex:
-                return f"Error al crear cliente: {ex}"
-
-        def registrar_gasto(concepto: str, monto: float, categoria: str = "Insumos", fecha: str = ""):
-            try:
-                fecha_final = fecha if fecha else datetime.now().strftime("%Y-%m-%d")
-                cur = conn.cursor()
-                cur.execute("INSERT INTO gastos (fecha, concepto, categoria, monto) VALUES (?, ?, ?, ?)", (fecha_final, concepto, categoria, monto))
-                conn.commit()
-                return f"Gasto registrado: {concepto} por ${monto:,.0f} el {fecha_final}."
-            except Exception as ex:
-                return f"Error al registrar gasto: {ex}"
-
-        mapa_funciones = {
-            "consultar_base_datos": consultar_base_datos,
-            "agendar_turno": agendar_turno,
-            "crear_cliente": crear_cliente,
-            "registrar_gasto": registrar_gasto,
+    st.subheader("🤖 Secretario Virtual")
+    st.caption(f"Hoy es {date.today()}. Pídele agendar turnos, revisar fichas de tintura o anotar gastos.")
+    
+    if "chat_pelu" not in st.session_state:
+        # ACUÉRDATE DE PEGAR AQUÍ TU CLAVE AQ. DE GOOGLE
+        # cliente_ia = genai.Client(api_key="AQ.Ab8RN6J5B_5dIwR8tN5u4LGAMbpliPAW2Q2bMM_i-ME_xDdOTA")
+        api_key = st.secrets["GEMINI_API_KEY"].strip()
+        cliente_ia = genai.Client(api_key=api_key)
+        config_ia = {
+            "tools": [consultar_ficha_cliente, ver_agenda, agendar_turno, registrar_gasto],
+            "system_instruction": (
+                f"Eres el asistente virtual de una peluquería. La fecha de hoy es {date.today()}. "
+                "Ayuda al peluquero usando tus herramientas para consultar fichas técnicas, ver turnos, agendar citas y registrar gastos. "
+                "Si te dice 'mañana' o 'el viernes', calcula la fecha exacta YYYY-MM-DD basándote en la fecha de hoy. "
+                "Responde siempre de forma muy breve, directa y amable."
+            )
         }
+        st.session_state.chat_pelu = cliente_ia.chats.create(
+            model="gemini-3.8-flash",
+            config=config_ia
+        )
+        st.session_state.mensajes_pelu = []
 
-        if "historial_chat" not in st.session_state:
-            st.session_state.historial_chat = []
+    for msg in st.session_state.mensajes_pelu:
+        with st.chat_message(msg["rol"]):
+            st.write(msg["texto"])
 
-        for msg in st.session_state.historial_chat:
-            with st.chat_message(msg["role"]):
-                st.markdown(msg["content"])
+    if prompt_pelu := st.chat_input("Ej: ¿Qué tintura usa Ana? o Agendame a Laura mañana a las 16 para corte"):
+        st.session_state.mensajes_pelu.append({"rol": "user", "texto": prompt_pelu})
+        with st.chat_message("user"):
+            st.write(prompt_pelu)
 
-        if st.button("🧹 Limpiar chat"):
-            st.session_state.historial_chat = []
-            st.rerun()
-        
-        if prompt := st.chat_input("Ej: ¿Cuánto facturamos esta semana? o Agendá a Ana mañana a las 15:00 para Corte"):
-            st.session_state.historial_chat.append({"role": "user", "content": prompt})
-            with st.chat_message("user"):
-                st.markdown(prompt)
+        with st.chat_message("assistant"):
+            try:
+                resp = st.session_state.chat_pelu.send_message(prompt_pelu)
+                st.write(resp.text)
+                st.session_state.mensajes_pelu.append({"rol": "assistant", "texto": resp.text})
+            except Exception as e:
+                st.error(f"Error al conectar con el asistente: {e}")
 
-            with st.chat_message("assistant"):
-                with st.spinner("Consultando..."):
-                    try:
-                        hoy_str = datetime.now().strftime("%Y-%m-%d")
-                        mensajes_api = [
-                            {
-                                "role": "system",
-                                "content": f"Eres el asistente virtual de una peluquería en Uruguay. Hoy es {hoy_str}. Responde de forma amable, clara y breve en español. Tablas: clientes(id, nombre, telefono, notas, activo), servicios(id, nombre, precio, duracion, activo), turnos(id, cliente_id, servicio_id, fecha, hora, precio, estado, metodo_pago), gastos(id, fecha, concepto, categoria, monto)."
-                            }
-                        ] + st.session_state.historial_chat
-
-                        respuesta = cliente_groq.chat.completions.create(
-                            model=MODELO_GROQ,
-                            messages=mensajes_api,
-                            tools=herramientas_groq,
-                            tool_choice="auto",
-                            reasoning_effort="low"
-                        )
-                        mensaje_ia = respuesta.choices[0].message
-
-                        if mensaje_ia.tool_calls:
-                            mensajes_api.append({
-                                "role": "assistant",
-                                "content": mensaje_ia.content or "",
-                                "tool_calls": [
-                                    {
-                                        "id": tc.id,
-                                        "type": "function",
-                                        "function": {
-                                            "name": tc.function.name,
-                                            "arguments": tc.function.arguments
-                                        }
-                                    }
-                                    for tc in mensaje_ia.tool_calls
-                                ]
-                            })
-                            for tool_call in mensaje_ia.tool_calls:
-                                nombre_fn = tool_call.function.name
-                                args = json.loads(tool_call.function.arguments)
-                                resultado_fn = mapa_funciones[nombre_fn](**args)
-                                mensajes_api.append({
-                                    "role": "tool",
-
-                                    "tool_call_id": tool_call.id,
-                                    "name": nombre_fn,
-                                    "content": str(resultado_fn)
-                                    })
-                            respuesta_final = cliente_groq.chat.completions.create(
-                                model=MODELO_GROQ,
-                                messages=mensajes_api,
-                                reasoning_effort="low"
-                            )
-                            texto_final = respuesta_final.choices[0].message.content
-                        else:
-                            st.markdown(texto_final)
-                            st.session_state.historial_chat.append({"role": "assistant", "content": texto_final})
-                    except Exception as e:
-                        st.error(f"Error al consultar el asistente: {e}")
-
-                                    
-                                    
 # ==========================================
 # PESTAÑA 6: ADMINISTRACIÓN MAESTRA (ABM)
 # ==========================================
