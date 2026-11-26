@@ -733,7 +733,10 @@ with tab_ia:  # (usa el mismo nombre de variable de tu pestaña de Asistente IA)
                     }
                 }
             }
-            def consultar_base_datos(consulta_sql: str):
+            
+        ]
+
+        def consultar_base_datos(consulta_sql: str):
             """Ejecuta consultas SQL SELECT de solo lectura."""
             sql_limpio = consulta_sql.strip()
             if not sql_limpio.upper().startswith("SELECT"):
@@ -795,8 +798,7 @@ with tab_ia:  # (usa el mismo nombre de variable de tu pestaña de Asistente IA)
             except Exception as ex:
                 return f"Error al registrar gasto: {ex}"
 
-        ]
-
+        
         mapa_funciones = {
             "consultar_base_datos": consultar_base_datos,
             "agendar_turno": agendar_turno,
