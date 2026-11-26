@@ -405,22 +405,6 @@ def eliminar_movimiento_caja(id_movimiento: int = 0) -> str:
 # --- INTERFAZ VISUAL ---
 st.set_page_config(page_title="Gestión Peluquería", page_icon="✂️", layout="centered")
 
-seccion = option_menu(
-    menu_title=None,
-    options=["Agenda", "Nuevo Turno", "Caja", "ABM", "Asistente"],
-    icons=["calendar-check", "plus-circle", "cash-coin", "sliders", "robot"],
-    menu_icon="cast",
-    default_index=0,
-    orientation="horizontal",
-    styles={
-        "container": {"padding": "4px", "background-color": "#FFFFFF", "border-radius": "14px", "border": "1px solid #E5E7EB"},
-        "icon": {"color": "#B8860B", "font-size": "18px"},
-        "nav-link": {"font-size": "14px", "text-align": "center", "margin": "0px", "padding": "10px 6px", "border-radius": "10px"},
-        "nav-link-selected": {"background-color": "#B8860B", "color": "#FFFFFF", "font-weight": "600"},
-    }
-)
-
-
 def verificar_acceso():
     if st.session_state.get("autenticado", False):
         return True
