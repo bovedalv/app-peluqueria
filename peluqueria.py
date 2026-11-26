@@ -835,7 +835,7 @@ with tab_ia:
                             model=MODELO_GROQ,
                             messages=mensajes_api,
                             tools=herramientas_groq,
-                            tool_choice="auto"
+                            tool_choice="auto",
                             reasoning_effort="low"
                         )
                         mensaje_ia = respuesta.choices[0].message
