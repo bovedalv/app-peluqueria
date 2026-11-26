@@ -869,7 +869,7 @@ with tab_ia:
                                     })
                             respuesta_final = cliente_groq.chat.completions.create(
                                 model=MODELO_GROQ,
-                                messages=mensajes_api
+                                messages=mensajes_api,
                                 reasoning_effort="low"
                             )
                             texto_final = respuesta_final.choices[0].message.content
