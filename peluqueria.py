@@ -1,6 +1,8 @@
 import libsql
 from datetime import date
 import streamlit as st
+from streamlit_option_menu import option_menu
+import plotly.express as px
 import pandas as pd
 from google import genai
 
@@ -402,6 +404,23 @@ def eliminar_movimiento_caja(id_movimiento: int = 0) -> str:
 
 # --- INTERFAZ VISUAL ---
 st.set_page_config(page_title="Gestión Peluquería", page_icon="✂️", layout="centered")
+
+seccion = option_menu(
+    menu_title=None,
+    options=["Agenda", "Nuevo Turno", "Caja", "ABM", "Asistente"],
+    icons=["calendar-check", "plus-circle", "cash-coin", "sliders", "robot"],
+    menu_icon="cast",
+    default_index=0,
+    orientation="horizontal",
+    styles={
+        "container": {"padding": "4px", "background-color": "#FFFFFF", "border-radius": "14px", "border": "1px solid #E5E7EB"},
+        "icon": {"color": "#B8860B", "font-size": "18px"},
+        "nav-link": {"font-size": "14px", "text-align": "center", "margin": "0px", "padding": "10px 6px", "border-radius": "10px"},
+        "nav-link-selected": {"background-color": "#B8860B", "color": "#FFFFFF", "font-weight": "600"},
+    }
+)
+
+
 def verificar_acceso():
     if st.session_state.get("autenticado", False):
         return True
@@ -425,14 +444,24 @@ if not verificar_acceso():
 
 st.title("✂️ Mi Peluquería")
 
-tab_agenda, tab_clientes, tab_servicios, tab_caja, tab_ia, tab_abm = st.tabs([
-    "📅 Agenda", "👤 Clientes", "🏷️ Tarifas", "💰 Caja", "🤖 Asistente IA", "⚙️ ABM"
-])
+seccion = option_menu(
+    menu_title=None,
+    options=["Agenda", "Clientes", "Tarifas", "Caja", "IA", "ABM"],
+    icons=["calendar-check", "people", "tags", "cash-coin", "robot", "sliders"],
+    default_index=0,
+    orientation="horizontal",
+    styles={
+        "container": {"padding": "4px", "background-color": "#FFFFFF", "border-radius": "14px", "border": "1px solid #E5E7EB"},
+        "icon": {"color": "#B8860B", "font-size": "17px"},
+        "nav-link": {"font-size": "13px", "text-align": "center", "margin": "0px", "padding": "10px 4px", "border-radius": "10px"},
+        "nav-link-selected": {"background-color": "#B8860B", "color": "#FFFFFF", "font-weight": "600"},
+    }
+)
 
 # ==========================================
 # PESTAÑA 1: AGENDA
 # ==========================================
-with tab_agenda:
+if seccion == "Agenda":
     st.subheader("Nuevo Turno")
     conn = conectar()
     clientes_df = leer_tabla("SELECT id, nombre FROM clientes WHERE COALESCE(activo, 1) = 1 ORDER BY nombre", conn)
@@ -517,7 +546,7 @@ with tab_agenda:
 # ==========================================
 # PESTAÑA 2: CLIENTES
 # ==========================================
-with tab_clientes:
+elif seccion == "Clientes":
     st.subheader("Agregar Cliente")
     with st.form("form_cliente", clear_on_submit=True):
         nombre_c = st.text_input("Nombre y Apellido")
@@ -546,7 +575,7 @@ with tab_clientes:
 # ==========================================
 # PESTAÑA 3: SERVICIOS Y TABLA DE COMISIONES
 # ==========================================
-with tab_servicios:
+elif seccion == "Tarifas":
     st.subheader("Agregar Servicio")
     with st.form("form_servicio", clear_on_submit=True):
         col_s1, col_s2 = st.columns(2)
@@ -604,7 +633,7 @@ with tab_servicios:
 # ==========================================
 # PESTAÑA 4: CAJA DIARIA
 # ==========================================
-with tab_caja:
+elif seccion == "Caja":
     st.subheader("Registrar Movimiento Manual")
     with st.form("form_caja", clear_on_submit=True):
         col_m1, col_m2 = st.columns(2)
@@ -657,7 +686,7 @@ with tab_caja:
 # ==========================================
 # PESTAÑA 5: ASISTENTE IA (SECRETARIO VIRTUAL)
 # ==========================================
-with tab_ia:
+elif seccion == "IA":
     st.subheader("🤖 Secretario Virtual")
     st.caption(f"Hoy es {date.today()}. Pídele agendar turnos, revisar fichas de tintura o anotar gastos.")
     
@@ -704,7 +733,7 @@ with tab_ia:
 # ==========================================
 # PESTAÑA 6: ADMINISTRACIÓN MAESTRA (ABM)
 # ==========================================
-with tab_abm:
+elif seccion == "ABM":
     st.subheader("⚙️ Administración de Tablas Maestras")
     st.caption("Edita directamente sobre las grillas tipo Excel y presiona 'Guardar Cambios' debajo de cada tabla. Desmarca 'Activo' para dar de baja sin perder el historial.")
 
