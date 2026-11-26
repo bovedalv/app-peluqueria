@@ -831,7 +831,7 @@ with tab_ia:  # (usa el mismo nombre de variable de tu pestaña de Asistente IA)
                         ] + st.session_state.historial_chat
 
                         respuesta = cliente_groq.chat.completions.create(
-                            model="llama-3.3-70b-versatile",
+                            model="openai/gpt-oss-120b",
                             messages=mensajes_api,
                             tools=herramientas_groq,
                             tool_choice="auto"
@@ -852,7 +852,7 @@ with tab_ia:  # (usa el mismo nombre de variable de tu pestaña de Asistente IA)
                                 })
 
                             respuesta_final = cliente_groq.chat.completions.create(
-                                model="llama-3.3-70b-versatile",
+                                model="openai/gpt-oss-120b",
                                 messages=mensajes_api
                             )
                             texto_final = respuesta_final.choices[0].message.content
