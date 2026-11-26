@@ -733,6 +733,68 @@ with tab_ia:  # (usa el mismo nombre de variable de tu pestaña de Asistente IA)
                     }
                 }
             }
+            def consultar_base_datos(consulta_sql: str):
+            """Ejecuta consultas SQL SELECT de solo lectura."""
+            sql_limpio = consulta_sql.strip()
+            if not sql_limpio.upper().startswith("SELECT"):
+                return "Error: Solo se permiten consultas SELECT de lectura."
+            try:
+                df_res = leer_tabla(sql_limpio, conn)
+                if df_res.empty:
+                    return "La consulta no devolvió resultados."
+                return df_res.to_json(orient="records", force_ascii=False)
+            except Exception as ex:
+                return f"Error SQL: {ex}"
+
+        def agendar_turno(cliente_nombre: str, servicio_nombre: str, fecha: str, hora: str, metodo_pago: str = "Pendiente"):
+            """Agenda un turno nuevo buscando cliente y servicio por nombre."""
+            try:
+                cur = conn.cursor()
+                df_c = leer_tabla("SELECT id, nombre FROM clientes WHERE LOWER(nombre) LIKE LOWER(?)", conn, (f"%{cliente_nombre}%",))
+                if df_c.empty:
+                    cur.execute("INSERT INTO clientes (nombre, activo) VALUES (?, 1)", (cliente_nombre,))
+                    conn.commit()
+                    df_c = leer_tabla("SELECT id, nombre FROM clientes WHERE nombre = ?", conn, (cliente_nombre,))
+                cliente_id = int(df_c.iloc["id"])
+                nombre_c_real = df_c.iloc["nombre"]
+
+                df_s = leer_tabla("SELECT id, nombre, precio FROM servicios WHERE LOWER(nombre) LIKE LOWER(?)", conn, (f"%{servicio_nombre}%",))
+                if df_s.empty:
+                    return f"No encontré ningún servicio parecido a '{servicio_nombre}'."
+                servicio_id = int(df_s.iloc["id"])
+                nombre_s_real = df_s.iloc["nombre"]
+                precio_s = float(df_s.iloc["precio"])
+
+                cur.execute(
+                    "INSERT INTO turnos (cliente_id, servicio_id, fecha, hora, precio, estado, metodo_pago) VALUES (?, ?, ?, ?, ?, 'Pendiente', ?)",
+                    (cliente_id, servicio_id, fecha, hora, precio_s, metodo_pago)
+                )
+                conn.commit()
+                return f"Turno agendado: {nombre_c_real} para {nombre_s_real} (${precio_s:,.0f}) el {fecha} a las {hora}."
+            except Exception as ex:
+                return f"Error al agendar turno: {ex}"
+
+        def crear_cliente(nombre: str, telefono: str = "", notas: str = ""):
+            """Crea un cliente nuevo en la base de datos."""
+            try:
+                cur = conn.cursor()
+                cur.execute("INSERT INTO clientes (nombre, telefono, notas, activo) VALUES (?, ?, ?, 1)", (nombre, telefono, notas))
+                conn.commit()
+                return f"Cliente '{nombre}' registrado correctamente."
+            except Exception as ex:
+                return f"Error al crear cliente: {ex}"
+
+        def registrar_gasto(concepto: str, monto: float, categoria: str = "Insumos", fecha: str = ""):
+            """Registra un gasto o egreso."""
+            try:
+                fecha_final = fecha if fecha else datetime.now().strftime("%Y-%m-%d")
+                cur = conn.cursor()
+                cur.execute("INSERT INTO gastos (fecha, concepto, categoria, monto) VALUES (?, ?, ?, ?)", (fecha_final, concepto, categoria, monto))
+                conn.commit()
+                return f"Gasto registrado: {concepto} por ${monto:,.0f} el {fecha_final}."
+            except Exception as ex:
+                return f"Error al registrar gasto: {ex}"
+
         ]
 
         mapa_funciones = {
