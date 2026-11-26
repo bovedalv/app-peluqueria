@@ -867,11 +867,11 @@ with tab_caja:
                             )
                             texto_final = respuesta_final.choices[0].message.content
                         else:
-                            texto_final = mensaje_ia.content
                             st.markdown(texto_final)
                             st.session_state.historial_chat.append({"role": "assistant", "content": texto_final})
-                        except Exception as e:
-                            st.error(f"Error al consultar el asistente: {e}")
+                    except Exception as e:
+                        st.error(f"Error al consultar el asistente: {e}")
+
                                     
                                     
 # ==========================================
