@@ -675,7 +675,7 @@ with tab_ia:
                 "Responde siempre de forma muy breve, directa y amable."
             
             ),
-            "thinking_config": types.ThinkingConfig(thinking_level="minimal")
+            "thinking_config": {"thinking_level": "minimal"}
 
         }
         st.session_state.chat_pelu = cliente_ia.chats.create(
