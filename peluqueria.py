@@ -673,6 +673,7 @@ with tab_ia:
                 "Ayuda al peluquero usando tus herramientas para consultar fichas técnicas, ver turnos, agendar citas y registrar gastos. "
                 "Si te dice 'mañana' o 'el viernes', calcula la fecha exacta YYYY-MM-DD basándote en la fecha de hoy. "
                 "Responde siempre de forma muy breve, directa y amable."
+            thinking_config=types.ThinkingConfig(thinking_level="minimal")
             )
         }
         st.session_state.chat_pelu = cliente_ia.chats.create(
