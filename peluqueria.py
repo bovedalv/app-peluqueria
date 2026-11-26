@@ -658,7 +658,8 @@ with tab_caja:
 
 # ==========================================
 # PESTAÑA 5: ASISTENTE IA (SECRETARIO VIRTUAL)
-# ==========================================with tab_ia:
+# ==========================================
+with tab_ia:
     st.subheader("🤖 Asistente Virtual de la Peluquería")
     st.caption("Consulta ventas, agenda turnos, crea clientes o registra gastos hablando naturalmente.")
 
