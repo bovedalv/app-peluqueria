@@ -667,7 +667,7 @@ with tab_ia:
         st.warning("⚠️ Falta configurar GROQ_API_KEY en los Secrets de Streamlit.")
     else:
         cliente_groq = Groq(api_key=st.secrets["GROQ_API_KEY"].strip(), timeout=15.0)
-        MODELO_GROQ = "openai/gpt-oss-20b"
+        MODELO_GROQ = "meta-llama/llama-4-scout-17b-16e-instruct"
 
         herramientas_groq = [
             {
@@ -811,6 +811,10 @@ with tab_ia:
             with st.chat_message(msg["role"]):
                 st.markdown(msg["content"])
 
+        if st.button("🧹 Limpiar chat"):
+            st.session_state.historial_chat = []
+            st.rerun()
+        
         if prompt := st.chat_input("Ej: ¿Cuánto facturamos esta semana? o Agendá a Ana mañana a las 15:00 para Corte"):
             st.session_state.historial_chat.append({"role": "user", "content": prompt})
             with st.chat_message("user"):
