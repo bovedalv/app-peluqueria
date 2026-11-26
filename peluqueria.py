@@ -2,7 +2,8 @@ import libsql
 from datetime import date
 import streamlit as st
 import pandas as pd
-from google import genai
+import json
+from groq import Groq
 
 
 def conectar():
