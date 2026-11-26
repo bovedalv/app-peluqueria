@@ -672,7 +672,7 @@ with tab_ia:
                 f"Eres el asistente virtual de una peluquería. La fecha de hoy es {date.today()}. "
                 "Ayuda al peluquero usando tus herramientas para consultar fichas técnicas, ver turnos, agendar citas y registrar gastos. "
                 "Si te dice 'mañana' o 'el viernes', calcula la fecha exacta YYYY-MM-DD basándote en la fecha de hoy. "
-                "Responde siempre de forma muy breve, directa y amable.",
+                "Responde siempre de forma muy breve, directa y amable."),
             thinking_config=types.ThinkingConfig(thinking_level="minimal")
             )
         }
