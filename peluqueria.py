@@ -667,7 +667,7 @@ with tab_ia:
         st.warning("⚠️ Falta configurar GROQ_API_KEY en los Secrets de Streamlit.")
     else:
         cliente_groq = Groq(api_key=st.secrets["GROQ_API_KEY"].strip(), timeout=15.0)
-        MODELO_GROQ = "meta-llama/llama-4-scout-17b-16e-instruct"
+        MODELO_GROQ = "openai/gpt-oss-20b"
 
         herramientas_groq = [
             {
@@ -836,6 +836,7 @@ with tab_ia:
                             messages=mensajes_api,
                             tools=herramientas_groq,
                             tool_choice="auto"
+                            reasoning_effort="low"
                         )
                         mensaje_ia = respuesta.choices[0].message
 
@@ -869,6 +870,7 @@ with tab_ia:
                             respuesta_final = cliente_groq.chat.completions.create(
                                 model=MODELO_GROQ,
                                 messages=mensajes_api
+                                reasoning_effort="low"
                             )
                             texto_final = respuesta_final.choices[0].message.content
                         else:
