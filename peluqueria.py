@@ -658,15 +658,15 @@ with tab_caja:
 
 # ==========================================
 # PESTAÑA 5: ASISTENTE IA (SECRETARIO VIRTUAL)
-# ==========================================
-with tab_ia:  # (usa el mismo nombre de variable de tu pestaña de Asistente IA)
-    st.subheader("🤖 Asistente Virtual de la Peluquería (Groq AI)")
+# ==========================================with tab_ia:
+    st.subheader("🤖 Asistente Virtual de la Peluquería")
     st.caption("Consulta ventas, agenda turnos, crea clientes o registra gastos hablando naturalmente.")
 
     if "GROQ_API_KEY" not in st.secrets:
         st.warning("⚠️ Falta configurar GROQ_API_KEY en los Secrets de Streamlit.")
     else:
-        cliente_groq = Groq(api_key=st.secrets["GROQ_API_KEY"].strip())
+        cliente_groq = Groq(api_key=st.secrets["GROQ_API_KEY"].strip(), timeout=15.0)
+        MODELO_GROQ = "openai/gpt-oss-20b"
 
         herramientas_groq = [
             {
@@ -734,11 +734,9 @@ with tab_ia:  # (usa el mismo nombre de variable de tu pestaña de Asistente IA)
                     }
                 }
             }
-            
         ]
 
         def consultar_base_datos(consulta_sql: str):
-            """Ejecuta consultas SQL SELECT de solo lectura."""
             sql_limpio = consulta_sql.strip()
             if not sql_limpio.upper().startswith("SELECT"):
                 return "Error: Solo se permiten consultas SELECT de lectura."
@@ -751,7 +749,6 @@ with tab_ia:  # (usa el mismo nombre de variable de tu pestaña de Asistente IA)
                 return f"Error SQL: {ex}"
 
         def agendar_turno(cliente_nombre: str, servicio_nombre: str, fecha: str, hora: str, metodo_pago: str = "Pendiente"):
-            """Agenda un turno nuevo buscando cliente y servicio por nombre."""
             try:
                 cur = conn.cursor()
                 df_c = leer_tabla("SELECT id, nombre FROM clientes WHERE LOWER(nombre) LIKE LOWER(?)", conn, (f"%{cliente_nombre}%",))
@@ -759,15 +756,17 @@ with tab_ia:  # (usa el mismo nombre de variable de tu pestaña de Asistente IA)
                     cur.execute("INSERT INTO clientes (nombre, activo) VALUES (?, 1)", (cliente_nombre,))
                     conn.commit()
                     df_c = leer_tabla("SELECT id, nombre FROM clientes WHERE nombre = ?", conn, (cliente_nombre,))
-                cliente_id = int(df_c.iloc["id"])
-                nombre_c_real = df_c.iloc["nombre"]
+                fila_c = df_c.iloc[0]
+                cliente_id = int(fila_c["id"])
+                nombre_c_real = fila_c["nombre"]
 
                 df_s = leer_tabla("SELECT id, nombre, precio FROM servicios WHERE LOWER(nombre) LIKE LOWER(?)", conn, (f"%{servicio_nombre}%",))
                 if df_s.empty:
                     return f"No encontré ningún servicio parecido a '{servicio_nombre}'."
-                servicio_id = int(df_s.iloc["id"])
-                nombre_s_real = df_s.iloc["nombre"]
-                precio_s = float(df_s.iloc["precio"])
+                fila_s = df_s.iloc[0]
+                servicio_id = int(fila_s["id"])
+                nombre_s_real = fila_s["nombre"]
+                precio_s = float(fila_s["precio"])
 
                 cur.execute(
                     "INSERT INTO turnos (cliente_id, servicio_id, fecha, hora, precio, estado, metodo_pago) VALUES (?, ?, ?, ?, ?, 'Pendiente', ?)",
@@ -779,7 +778,6 @@ with tab_ia:  # (usa el mismo nombre de variable de tu pestaña de Asistente IA)
                 return f"Error al agendar turno: {ex}"
 
         def crear_cliente(nombre: str, telefono: str = "", notas: str = ""):
-            """Crea un cliente nuevo en la base de datos."""
             try:
                 cur = conn.cursor()
                 cur.execute("INSERT INTO clientes (nombre, telefono, notas, activo) VALUES (?, ?, ?, 1)", (nombre, telefono, notas))
@@ -789,7 +787,6 @@ with tab_ia:  # (usa el mismo nombre de variable de tu pestaña de Asistente IA)
                 return f"Error al crear cliente: {ex}"
 
         def registrar_gasto(concepto: str, monto: float, categoria: str = "Insumos", fecha: str = ""):
-            """Registra un gasto o egreso."""
             try:
                 fecha_final = fecha if fecha else datetime.now().strftime("%Y-%m-%d")
                 cur = conn.cursor()
@@ -799,7 +796,6 @@ with tab_ia:  # (usa el mismo nombre de variable de tu pestaña de Asistente IA)
             except Exception as ex:
                 return f"Error al registrar gasto: {ex}"
 
-        
         mapa_funciones = {
             "consultar_base_datos": consultar_base_datos,
             "agendar_turno": agendar_turno,
@@ -820,18 +816,18 @@ with tab_ia:  # (usa el mismo nombre de variable de tu pestaña de Asistente IA)
                 st.markdown(prompt)
 
             with st.chat_message("assistant"):
-                with st.spinner("Pensando..."):
+                with st.spinner("Consultando..."):
                     try:
                         hoy_str = datetime.now().strftime("%Y-%m-%d")
                         mensajes_api = [
                             {
                                 "role": "system",
-                                "content": f"Eres el asistente virtual de una peluquería en Uruguay. Hoy es {hoy_str}. Responde de forma amable, clara y breve en español. Usa tus herramientas para consultar o modificar la base de datos real."
+                                "content": f"Eres el asistente virtual de una peluquería en Uruguay. Hoy es {hoy_str}. Responde de forma amable, clara y breve en español. Tablas: clientes(id, nombre, telefono, notas, activo), servicios(id, nombre, precio, duracion, activo), turnos(id, cliente_id, servicio_id, fecha, hora, precio, estado, metodo_pago), gastos(id, fecha, concepto, categoria, monto)."
                             }
                         ] + st.session_state.historial_chat
 
                         respuesta = cliente_groq.chat.completions.create(
-                            model="openai/gpt-oss-120b",
+                            model=MODELO_GROQ,
                             messages=mensajes_api,
                             tools=herramientas_groq,
                             tool_choice="auto"
@@ -839,31 +835,45 @@ with tab_ia:  # (usa el mismo nombre de variable de tu pestaña de Asistente IA)
                         mensaje_ia = respuesta.choices[0].message
 
                         if mensaje_ia.tool_calls:
-                            mensajes_api.append(mensaje_ia)
+                            mensajes_api.append({
+                                "role": "assistant",
+                                "content": mensaje_ia.content or "",
+                                "tool_calls": [
+                                    {
+                                        "id": tc.id,
+                                        "type": "function",
+                                        "function": {
+                                            "name": tc.function.name,
+                                            "arguments": tc.function.arguments
+                                        }
+                                    }
+                                    for tc in mensaje_ia.tool_calls
+                                ]
+                            })
                             for tool_call in mensaje_ia.tool_calls:
                                 nombre_fn = tool_call.function.name
                                 args = json.loads(tool_call.function.arguments)
                                 resultado_fn = mapa_funciones[nombre_fn](**args)
                                 mensajes_api.append({
                                     "role": "tool",
+
                                     "tool_call_id": tool_call.id,
                                     "name": nombre_fn,
                                     "content": str(resultado_fn)
-                                })
-
+                                    })
                             respuesta_final = cliente_groq.chat.completions.create(
-                                model="openai/gpt-oss-120b",
+                                model=MODELO_GROQ,
                                 messages=mensajes_api
                             )
                             texto_final = respuesta_final.choices[0].message.content
                         else:
                             texto_final = mensaje_ia.content
-
-                        st.markdown(texto_final)
-                        st.session_state.historial_chat.append({"role": "assistant", "content": texto_final})
-                    except Exception as e:
-                        st.error(f"Error al consultar el asistente: {e}")
-
+                            st.markdown(texto_final)
+                            st.session_state.historial_chat.append({"role": "assistant", "content": texto_final})
+                        except Exception as e:
+                            st.error(f"Error al consultar el asistente: {e}")
+                                    
+                                    
 # ==========================================
 # PESTAÑA 6: ADMINISTRACIÓN MAESTRA (ABM)
 # ==========================================
